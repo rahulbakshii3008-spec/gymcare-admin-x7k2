@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymCare Refer &amp; Earn — Admin</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Hind:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#121316; --bg-raise:#1b1d22; --surface:#20232a;
+    --line:rgba(243,241,234,0.10); --line-strong:rgba(243,241,234,0.20);
+    --chalk:#f3f1ea; --chalk-dim:#b8b5ab; --steel:#8b929b;
+    --gold:#e8ac2e; --gold-dim:#c99420; --green:#3ecf6a; --iron-red:#c1392b;
+    --blue:#5c7ef2;
+    --display:'Bebas Neue', 'Hind', sans-serif;
+    --body:'Hind', sans-serif;
+    --mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--chalk); font-family:var(--body); min-height:100vh; -webkit-font-smoothing:antialiased;}
+  button, input, select, textarea{font-family:inherit;}
+  button{cursor:pointer;}
+
+  .wrap{max-width:1180px; margin:0 auto; padding:0 20px;}
+
+  .loading-veil{
+    position:fixed; inset:0; background:var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    z-index:200; color:var(--chalk-dim); font-family:var(--mono); font-size:13px;
+  }
+
+  /* ---------- login ---------- */
+  .login-shell{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .login-box{
+    width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line);
+    border-radius:18px; padding:36px 30px; text-align:center;
+  }
+  .login-box h1{font-family:var(--display); font-size:30px; letter-spacing:0.5px; margin-bottom:4px;}
+  .login-box .sub{color:var(--chalk-dim); font-size:13.5px; margin-bottom:24px;}
+  .field{margin-bottom:16px; text-align:left;}
+  .field label{display:block; font-size:12px; font-weight:700; color:var(--chalk-dim); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:7px;}
+  .field input{
+    width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--line-strong);
+    border-radius:10px; color:var(--chalk); font-size:15px; outline:none; transition:border-color .15s ease;
+  }
+  .field input:focus{border-color:var(--gold);}
+  .primary-btn{
+    width:100%; padding:13px; background:var(--gold); color:#17150d; border:none;
+    border-radius:10px; font-weight:700; font-size:15px; transition:transform .15s ease, opacity .15s ease;
+  }
+  .primary-btn:hover{transform:translateY(-1px);}
+  .primary-btn:disabled{opacity:0.6; cursor:not-allowed; transform:none;}
+  .alert{margin-top:14px; padding:11px 14px; border-radius:9px; font-size:13.5px; font-weight:600; display:none; text-align:left;}
+  .alert.show{display:block;}
+  .alert.err{background:rgba(193,57,43,0.14); color:#f08b81;}
+  .alert.ok{background:rgba(62,207,106,0.12); color:#6fe397;}
+
+  /* ---------- nav ---------- */
+  .nav{border-bottom:1px solid var(--line); background:rgba(18,19,22,0.9); backdrop-filter:blur(8px); position:sticky; top:0; z-index:20;}
+  .nav-inner{max-width:1180px; margin:0 auto; padding:16px 20px; display:flex; align-items:center; justify-content:space-between;}
+  .logo{font-family:var(--display); font-size:22px; letter-spacing:1px;}
+  .logo span{color:var(--gold);}
+  .logo small{display:block; font-family:var(--mono); font-size:10px; letter-spacing:1.5px; color:var(--steel); text-transform:uppercase; margin-top:-4px;}
+  .logout-btn{background:transparent; border:1px solid var(--line-strong); color:var(--chalk-dim); padding:8px 16px; border-radius:100px; font-size:13px; font-weight:600;}
+  .logout-btn:hover{border-color:var(--iron-red); color:var(--iron-red);}
+
+  /* ---------- tabs ---------- */
+  #app{display:none;}
+  .tabbar{display:flex; gap:8px; margin:24px 0 20px; border-bottom:1px solid var(--line); padding-bottom:0;}
+  .tabbtn{
+    background:transparent; border:none; color:var(--chalk-dim); font-weight:700; font-size:14px;
+    padding:10px 4px; border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tabbtn.active{color:var(--gold); border-bottom-color:var(--gold);}
+  .panel{display:none; padding-bottom:60px;}
+  .panel.active{display:block;}
+
+  /* ---------- filter bar ---------- */
+  .filters{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
+  .filters input, .filters select{
+    padding:10px 13px; background:var(--surface); border:1px solid var(--line-strong);
+    border-radius:9px; color:var(--chalk); font-size:13.5px; outline:none;
+  }
+  .filters input:focus, .filters select:focus{border-color:var(--gold);}
+  .filter-btn{padding:10px 18px; background:var(--gold); color:#17150d; border:none; border-radius:9px; font-weight:700; font-size:13.5px;}
+  .filter-btn.ghost{background:transparent; border:1px solid var(--line-strong); color:var(--chalk-dim);}
+
+  /* ---------- table ---------- */
+  .table-wrap{background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; font-size:13px; min-width:760px;}
+  thead th{text-align:left; padding:12px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; color:var(--steel); border-bottom:1px solid var(--line); font-weight:700; white-space:nowrap;}
+  tbody td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--chalk-dim); vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody td.name{color:var(--chalk); font-weight:600;}
+  .empty-row{padding:34px 16px; text-align:center; color:var(--steel); font-size:14px;}
+
+  .badge{display:inline-block; padding:4px 10px; border-radius:100px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; white-space:nowrap;}
+  .badge.lead{background:rgba(139,146,155,0.15); color:var(--steel);}
+  .badge.verified{background:rgba(232,172,46,0.15); color:var(--gold);}
+  .badge.paid{background:rgba(92,126,242,0.15); color:#8ea2f7;}
+  .badge.reversed{background:rgba(193,57,43,0.15); color:#f08b81;}
+  .badge.active{background:rgba(62,207,106,0.15); color:var(--green);}
+  .badge.blocked{background:rgba(193,57,43,0.15); color:#f08b81;}
+  .badge.pending{background:rgba(139,146,155,0.15); color:var(--steel);}
+  .flag{color:var(--iron-red); font-weight:700; font-size:11px;}
+
+  .row-actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .mini-btn{
+    padding:6px 12px; border-radius:100px; font-size:11.5px; font-weight:700;
+    border:1px solid var(--line-strong); background:transparent; color:var(--chalk);
+    white-space:nowrap; transition:border-color .15s ease, color .15s ease;
+  }
+  .mini-btn:hover{border-color:var(--gold); color:var(--gold);}
+  .mini-btn.danger:hover{border-color:var(--iron-red); color:var(--iron-red);}
+  .mini-btn.good:hover{border-color:var(--green); color:var(--green);}
+
+  .section-title{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--steel); margin:8px 0 14px;}
+
+  /* ---------- modal ---------- */
+  .modal-veil{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none;
+    align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .modal-veil.show{display:flex;}
+  .modal-box{
+    width:100%; max-width:420px; background:var(--surface); border:1px solid var(--line-strong);
+    border-radius:16px; padding:28px 26px;
+  }
+  .modal-box h3{font-family:var(--display); font-size:22px; letter-spacing:0.5px; margin-bottom:14px;}
+  .modal-actions{display:flex; gap:10px; margin-top:20px;}
+  .modal-actions button{flex:1; padding:12px; border-radius:9px; font-weight:700; font-size:14px; border:1px solid var(--line-strong);}
+  .modal-actions .confirm{background:var(--gold); color:#17150d; border-color:var(--gold);}
+  .modal-actions .cancel{background:transparent; color:var(--chalk-dim);}
+  .modal-box textarea{
+    width:100%; min-height:80px; padding:10px 12px; background:var(--bg); border:1px solid var(--line-strong);
+    border-radius:9px; color:var(--chalk); font-size:14px; resize:vertical; outline:none;
+  }
+  .modal-box select, .modal-box input{
+    width:100%; padding:11px 13px; background:var(--bg); border:1px solid var(--line-strong);
+    border-radius:9px; color:var(--chalk); font-size:14px; margin-top:6px; outline:none;
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-veil" id="loadingVeil">Loading…</div>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div class="login-shell" id="loginShell">
+  <div class="login-box">
+    <h1>Refer &amp; Earn</h1>
+    <p class="sub">Admin panel</p>
+    <form id="loginForm">
+      <div class="field">
+        <label>Admin Password</label>
+        <input type="password" id="adminPassword" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="primary-btn" id="loginSubmit">Login</button>
+      <div class="alert" id="loginAlert"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ══════════════ APP ══════════════ -->
+<div id="app">
+  <header class="nav">
+    <div class="nav-inner">
+      <div class="logo">GymCare<span>.</span><small>REFER &amp; EARN — ADMIN</small></div>
+      <button class="logout-btn" id="logoutBtn" type="button">Logout</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="tabbar">
+      <button class="tabbtn active" data-tab="referrals">Referrals Queue</button>
+      <button class="tabbtn" data-tab="promoters">Promoters</button>
+      <button class="tabbtn" data-tab="withdrawals">Withdrawal Requests</button>
+    </div>
+
+    <!-- REFERRALS PANEL -->
+    <div class="panel active" id="panel-referrals">
+      <div class="filters">
+        <select id="filterStage">
+          <option value="">All stages</option>
+          <option value="lead">Pending (lead)</option>
+          <option value="verified">Verified</option>
+          <option value="paid">Paid</option>
+          <option value="reversed">Reversed</option>
+        </select>
+        <input type="text" id="filterPromoterPhone" placeholder="Promoter phone">
+        <input type="text" id="filterGymPhone" placeholder="Gym owner phone">
+        <button class="filter-btn" id="applyFilters" type="button">Filter</button>
+        <button class="filter-btn ghost" id="clearFilters" type="button">Clear</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Promoter</th><th>Gym Owner</th><th>Phone</th><th>Source</th><th>Stage</th><th>Commission</th><th>Flag</th><th>Date</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="referralsBody"><tr><td colspan="9" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROMOTERS PANEL -->
+    <div class="panel" id="panel-promoters">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Name</th><th>Phone</th><th>Referral Code</th><th>Status</th><th>T&amp;C Accepted</th><th>Signed Up</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="promotersBody"><tr><td colspan="7" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- WITHDRAWALS PANEL -->
+    <div class="panel" id="panel-withdrawals">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Promoter</th><th>Phone</th><th>Amount</th><th>Status</th><th>Requested</th><th>Resolved</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="withdrawalsBody"><tr><td colspan="7" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL (reused for all actions) ══════════════ -->
+<div class="modal-veil" id="modalVeil">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
+<script>
+(function () {
+  const BACKEND_URL = 'https://gymcare-refer-earn.onrender.com';
+  const TOKEN_KEY = 'gymcare_admin_token';
+  const $ = (id) => document.getElementById(id);
+
+  const COMMISSION_OPTIONS = [
+    { cycle: 'monthly', price: 299, label: 'Monthly ₹299 → ₹200 commission' },
+    { cycle: 'monthly', price: 699, label: 'Monthly ₹699 → ₹500 commission' },
+    { cycle: 'monthly', price: 1299, label: 'Monthly ₹1299 → ₹999 commission' },
+    { cycle: 'yearly', price: 2990, label: 'Yearly ₹2990 → ₹350 commission' },
+    { cycle: 'yearly', price: 6990, label: 'Yearly ₹6990 → ₹850 commission' },
+    { cycle: 'yearly', price: 12990, label: 'Yearly ₹12990 → ₹1750 commission' },
+  ];
+
+  function api(path, opts) {
+    opts = opts || {};
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return fetch(BACKEND_URL.replace(/\/$/, '') + path, {
+      method: opts.method || 'GET',
+      headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw Object.assign(new Error(data.error || 'Request failed'), { data, status: r.status });
+      return data;
+    });
+  }
+
+  function showAlert(el, msg, type) { el.textContent = msg; el.className = 'alert show ' + (type || 'err'); }
+  function fmtMoney(n) { return '₹' + Number(n || 0).toLocaleString('en-IN'); }
+  function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'; }
+
+  function stageBadge(stage) {
+    if (stage === 'lead') return '<span class="badge lead">Pending</span>';
+    if (stage === 'verified') return '<span class="badge verified">Verified</span>';
+    if (stage === 'paid') return '<span class="badge paid">Paid</span>';
+    if (stage === 'reversed') return '<span class="badge reversed">Reversed</span>';
+    return '<span class="badge lead">' + stage + '</span>';
+  }
+
+  /* ---------- generic modal ---------- */
+  function openModal(html) { $('modalBox').innerHTML = html; $('modalVeil').classList.add('show'); }
+  function closeModal() { $('modalVeil').classList.remove('show'); $('modalBox').innerHTML = ''; }
+  $('modalVeil').addEventListener('click', function (e) { if (e.target === $('modalVeil')) closeModal(); });
+
+  /* ---------- login ---------- */
+  $('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const btn = $('loginSubmit');
+    btn.disabled = true; btn.textContent = 'Logging in…';
+    api('/admin/login', { method: 'POST', body: { password: $('adminPassword').value } })
+      .then((data) => { localStorage.setItem(TOKEN_KEY, data.token); boot(); })
+      .catch((err) => showAlert($('loginAlert'), err.data && err.data.error ? err.data.error : 'Login fail ho gaya', 'err'))
+      .finally(() => { btn.disabled = false; btn.textContent = 'Login'; });
+  });
+
+  $('logoutBtn').addEventListener('click', function () {
+    localStorage.removeItem(TOKEN_KEY);
+    $('app').style.display = 'none';
+    $('loginShell').style.display = 'flex';
+  });
+
+  /* ---------- tabs ---------- */
+  document.querySelectorAll('.tabbtn').forEach((btn) => {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tabbtn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+      btn.classList.add('active');
+      $('panel-' + btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  /* ---------- REFERRALS ---------- */
+  function loadReferrals() {
+    const stage = $('filterStage').value;
+    const promoterPhone = $('filterPromoterPhone').value.trim();
+    const gymPhone = $('filterGymPhone').value.trim();
+    const params = new URLSearchParams();
+    if (stage) params.set('stage', stage);
+    if (promoterPhone) params.set('promoterPhone', promoterPhone);
+    if (gymPhone) params.set('gymPhone', gymPhone);
+    const qs = params.toString();
+
+    $('referralsBody').innerHTML = '<tr><td colspan="9" class="empty-row">Loading…</td></tr>';
+    api('/admin/referrals' + (qs ? '?' + qs : '')).then((data) => {
+      const rows = data.referrals || [];
+      if (!rows.length) {
+        $('referralsBody').innerHTML = '<tr><td colspan="9" class="empty-row">Koi referral nahi mila</td></tr>';
+        return;
+      }
+      $('referralsBody').innerHTML = rows.map((r) => {
+        const promoter = r.promoters || {};
+        const actions = [];
+        if (r.stage === 'lead') {
+          actions.push('<button class="mini-btn good" data-action="verify" data-id="' + r.id + '">Verify</button>');
+        }
+        if (r.stage !== 'paid' && r.stage !== 'reversed' && !r.withdrawal_request_id) {
+          actions.push('<button class="mini-btn danger" data-action="reverse" data-id="' + r.id + '">Reverse</button>');
+        }
+        return (
+          '<tr>' +
+            '<td class="name">' + (promoter.name || '—') + '<br><span style="font-size:11px;color:var(--steel);">' + (promoter.referral_code || '') + '</span></td>' +
+            '<td class="name">' + (r.prospect_name || '—') + '</td>' +
+            '<td>' + (r.prospect_phone || '—') + '</td>' +
+            '<td>' + (r.source || '—') + '</td>' +
+            '<td>' + stageBadge(r.stage) + '</td>' +
+            '<td>' + (r.commission_amount ? fmtMoney(r.commission_amount) : '—') + '</td>' +
+            '<td>' + (r.sameIpAsPromoterFlag ? '<span class="flag">⚠ Same IP</span>' : '—') + '</td>' +
+            '<td>' + fmtDate(r.created_at) + '</td>' +
+            '<td><div class="row-actions">' + (actions.join('') || '—') + '</div></td>' +
+          '</tr>'
+        );
+      }).join('');
+    }).catch((err) => {
+      $('referralsBody').innerHTML = '<tr><td colspan="9" class="empty-row">Load nahi ho paya: ' + (err.data && err.data.error ? err.data.error : err.message) + '</td></tr>';
+    });
+  }
+
+  $('applyFilters').addEventListener('click', loadReferrals);
+  $('clearFilters').addEventListener('click', function () {
+    $('filterStage').value = ''; $('filterPromoterPhone').value = ''; $('filterGymPhone').value = '';
+    loadReferrals();
+  });
+
+  $('referralsBody').addEventListener('click', function (e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'verify') openVerifyModal(id);
+    if (btn.dataset.action === 'reverse') openReverseModal(id);
+  });
+
+  function openVerifyModal(id) {
+    const options = COMMISSION_OPTIONS.map((o, i) => '<option value="' + i + '">' + o.label + '</option>').join('');
+    openModal(
+      '<h3>Verify Referral</h3>' +
+      '<p style="color:var(--chalk-dim); font-size:13.5px; margin-bottom:14px;">1st payment confirm hone par plan select karo — 31-din ka unlock lock ab se shuru hoga.</p>' +
+      '<label style="font-size:12px; font-weight:700; color:var(--chalk-dim); text-transform:uppercase;">Plan</label>' +
+      '<select id="verifyPlanSelect">' + options + '</select>' +
+      '<div class="alert" id="verifyAlert"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="cancel" id="verifyCancel" type="button">Cancel</button>' +
+        '<button class="confirm" id="verifyConfirm" type="button">Verify</button>' +
+      '</div>'
+    );
+    $('verifyCancel').addEventListener('click', closeModal);
+    $('verifyConfirm').addEventListener('click', function () {
+      const opt = COMMISSION_OPTIONS[Number($('verifyPlanSelect').value)];
+      const btn = $('verifyConfirm');
+      btn.disabled = true; btn.textContent = 'Verifying…';
+      api('/admin/referrals/' + id + '/verify', { method: 'POST', body: { billingCycle: opt.cycle, planPrice: opt.price } })
+        .then(() => { closeModal(); loadReferrals(); })
+        .catch((err) => showAlert($('verifyAlert'), err.data && err.data.error ? err.data.error : 'Verify fail ho gaya', 'err'))
+        .finally(() => { btn.disabled = false; btn.textContent = 'Verify'; });
+    });
+  }
+
+  function openReverseModal(id) {
+    openModal(
+      '<h3>Reverse Referral</h3>' +
+      '<p style="color:var(--chalk-dim); font-size:13.5px; margin-bottom:14px;">Agar gym owner ne refund/cancel kar diya hai to commission ko revert karo.</p>' +
+      '<label style="font-size:12px; font-weight:700; color:var(--chalk-dim); text-transform:uppercase;">Reason</label>' +
+      '<textarea id="reverseReason" placeholder="Reason likho…"></textarea>' +
+      '<div class="alert" id="reverseAlert"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="cancel" id="reverseCancel" type="button">Cancel</button>' +
+        '<button class="confirm" id="reverseConfirm" type="button">Reverse</button>' +
+      '</div>'
+    );
+    $('reverseCancel').addEventListener('click', closeModal);
+    $('reverseConfirm').addEventListener('click', function () {
+      const btn = $('reverseConfirm');
+      btn.disabled = true; btn.textContent = 'Reversing…';
+      api('/admin/referrals/' + id + '/reverse', { method: 'POST', body: { reason: $('reverseReason').value.trim() } })
+        .then(() => { closeModal(); loadReferrals(); })
+        .catch((err) => showAlert($('reverseAlert'), err.data && err.data.error ? err.data.error : 'Reverse fail ho gaya', 'err'))
+        .finally(() => { btn.disabled = false; btn.textContent = 'Reverse'; });
+    });
+  }
+
+  /* ---------- PROMOTERS ---------- */
+  function loadPromoters() {
+    $('promotersBody').innerHTML = '<tr><td colspan="7" class="empty-row">Loading…</td></tr>';
+    api('/admin/promoters').then((data) => {
+      const rows = data.promoters || [];
+      if (!rows.length) {
+        $('promotersBody').innerHTML = '<tr><td colspan="7" class="empty-row">Koi promoter nahi hai</td></tr>';
+        return;
+      }
+      $('promotersBody').innerHTML = rows.map((p) => (
+        '<tr>' +
+          '<td class="name">' + p.name + '</td>' +
+          '<td>' + p.phone + '</td>' +
+          '<td style="font-family:var(--mono); color:var(--gold);">' + p.referral_code + '</td>' +
+          '<td>' + (p.active ? '<span class="badge active">Active</span>' : '<span class="badge blocked">Blocked</span>') + '</td>' +
+          '<td>' + (p.terms_accepted_at ? fmtDate(p.terms_accepted_at) : '—') + '</td>' +
+          '<td>' + fmtDate(p.created_at) + '</td>' +
+          '<td><div class="row-actions">' +
+            (p.active
+              ? '<button class="mini-btn danger" data-action="block" data-id="' + p.id + '">Block</button>'
+              : '<button class="mini-btn good" data-action="unblock" data-id="' + p.id + '">Unblock</button>') +
+            '<button class="mini-btn" data-action="reset-pin" data-id="' + p.id + '">Reset PIN</button>' +
+          '</div></td>' +
+        '</tr>'
+      )).join('');
+    }).catch((err) => {
+      $('promotersBody').innerHTML = '<tr><td colspan="7" class="empty-row">Load nahi ho paya: ' + (err.data && err.data.error ? err.data.error : err.message) + '</td></tr>';
+    });
+  }
+
+  $('promotersBody').addEventListener('click', function (e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    if (btn.dataset.action === 'block') doPromoterAction(id, 'block');
+    if (btn.dataset.action === 'unblock') doPromoterAction(id, 'unblock');
+    if (btn.dataset.action === 'reset-pin') openResetPinModal(id);
+  });
+
+  function doPromoterAction(id, action) {
+    api('/admin/promoters/' + id + '/' + action, { method: 'POST' }).then(loadPromoters).catch((err) => {
+      alert(err.data && err.data.error ? err.data.error : 'Action fail ho gaya');
+    });
+  }
+
+  function openResetPinModal(id) {
+    openModal(
+      '<h3>Reset PIN</h3>' +
+      '<p style="color:var(--chalk-dim); font-size:13.5px; margin-bottom:14px;">Promoter se phone pe identity confirm karne ke baad naya PIN set karo.</p>' +
+      '<label style="font-size:12px; font-weight:700; color:var(--chalk-dim); text-transform:uppercase;">New PIN (4–6 digits)</label>' +
+      '<input type="password" id="newPinInput" maxlength="6" inputmode="numeric">' +
+      '<div class="alert" id="resetPinAlert"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="cancel" id="resetPinCancel" type="button">Cancel</button>' +
+        '<button class="confirm" id="resetPinConfirm" type="button">Reset</button>' +
+      '</div>'
+    );
+    $('resetPinCancel').addEventListener('click', closeModal);
+    $('resetPinConfirm').addEventListener('click', function () {
+      const btn = $('resetPinConfirm');
+      btn.disabled = true; btn.textContent = 'Resetting…';
+      api('/admin/promoters/' + id + '/reset-pin', { method: 'POST', body: { newPin: $('newPinInput').value.trim() } })
+        .then(() => { closeModal(); loadPromoters(); })
+        .catch((err) => showAlert($('resetPinAlert'), err.data && err.data.error ? err.data.error : 'Reset fail ho gaya', 'err'))
+        .finally(() => { btn.disabled = false; btn.textContent = 'Reset'; });
+    });
+  }
+
+  /* ---------- WITHDRAWALS ---------- */
+  function loadWithdrawals() {
+    $('withdrawalsBody').innerHTML = '<tr><td colspan="7" class="empty-row">Loading…</td></tr>';
+    api('/admin/withdrawal-requests').then((data) => {
+      const rows = data.withdrawals || [];
+      if (!rows.length) {
+        $('withdrawalsBody').innerHTML = '<tr><td colspan="7" class="empty-row">Koi withdrawal request nahi hai</td></tr>';
+        return;
+      }
+      $('withdrawalsBody').innerHTML = rows.map((w) => {
+        const promoter = w.promoters || {};
+        const isPending = w.status === 'pending';
+        return (
+          '<tr>' +
+            '<td class="name">' + (promoter.name || '—') + '</td>' +
+            '<td>' + (promoter.phone || '—') + '</td>' +
+            '<td class="name">' + fmtMoney(w.amount) + '</td>' +
+            '<td>' + (w.status === 'paid' ? '<span class="badge paid">Paid</span>' : w.status === 'rejected' ? '<span class="badge reversed">Rejected</span>' : '<span class="badge pending">Pending</span>') + '</td>' +
+            '<td>' + fmtDate(w.requested_at) + '</td>' +
+            '<td>' + fmtDate(w.resolved_at) + '</td>' +
+            '<td>' + (isPending
+              ? '<div class="row-actions">' +
+                  '<button class="mini-btn good" data-action="resolve-paid" data-id="' + w.id + '">Mark Paid</button>' +
+                  '<button class="mini-btn danger" data-action="resolve-rejected" data-id="' + w.id + '">Reject</button>' +
+                '</div>'
+              : '—') + '</td>' +
+          '</tr>'
+        );
+      }).join('');
+    }).catch((err) => {
+      $('withdrawalsBody').innerHTML = '<tr><td colspan="7" class="empty-row">Load nahi ho paya: ' + (err.data && err.data.error ? err.data.error : err.message) + '</td></tr>';
+    });
+  }
+
+  $('withdrawalsBody').addEventListener('click', function (e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const status = btn.dataset.action === 'resolve-paid' ? 'paid' : 'rejected';
+    openResolveModal(id, status);
+  });
+
+  function openResolveModal(id, status) {
+    const title = status === 'paid' ? 'Mark as Paid' : 'Reject Request';
+    openModal(
+      '<h3>' + title + '</h3>' +
+      '<p style="color:var(--chalk-dim); font-size:13.5px; margin-bottom:14px;">' +
+        (status === 'paid'
+          ? 'Confirm karo ki payment promoter ko bhej di gayi hai (UPI/bank transfer se, manually).'
+          : 'Ye request reject ho jaayegi — referrals unlocked pool mein wapas chale jaayenge.') +
+      '</p>' +
+      '<label style="font-size:12px; font-weight:700; color:var(--chalk-dim); text-transform:uppercase;">Note (optional)</label>' +
+      '<textarea id="resolveNote" placeholder="e.g. UPI ref number, ya reject ka reason…"></textarea>' +
+      '<div class="alert" id="resolveAlert"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="cancel" id="resolveCancel" type="button">Cancel</button>' +
+        '<button class="confirm" id="resolveConfirm" type="button">' + title + '</button>' +
+      '</div>'
+    );
+    $('resolveCancel').addEventListener('click', closeModal);
+    $('resolveConfirm').addEventListener('click', function () {
+      const btn = $('resolveConfirm');
+      btn.disabled = true; btn.textContent = 'Saving…';
+      api('/admin/withdrawal-requests/' + id + '/resolve', { method: 'POST', body: { status, adminNote: $('resolveNote').value.trim() } })
+        .then(() => { closeModal(); loadWithdrawals(); loadReferrals(); })
+        .catch((err) => showAlert($('resolveAlert'), err.data && err.data.error ? err.data.error : 'Action fail ho gayi', 'err'))
+        .finally(() => { btn.disabled = false; btn.textContent = title; });
+    });
+  }
+
+  /* ---------- boot ---------- */
+  function boot() {
+    $('loadingVeil').style.display = 'none';
+    $('loginShell').style.display = 'none';
+    $('app').style.display = 'block';
+    loadReferrals();
+    loadPromoters();
+    loadWithdrawals();
+  }
+
+  if (localStorage.getItem(TOKEN_KEY)) {
+    // token presence alone doesn't guarantee validity — first data call
+    // will 401 and fall back to login if it's actually expired/invalid.
+    boot();
+    api('/admin/promoters').catch(() => {
+      localStorage.removeItem(TOKEN_KEY);
+      $('app').style.display = 'none';
+      $('loginShell').style.display = 'flex';
+    });
+  } else {
+    $('loadingVeil').style.display = 'none';
+  }
+})();
+</script>
+
+</body>
+</html>
