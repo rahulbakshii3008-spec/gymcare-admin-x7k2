@@ -134,7 +134,13 @@
   .modal-actions{display:flex; gap:10px; margin-top:20px;}
   .modal-actions button{flex:1; padding:12px; border-radius:9px; font-weight:700; font-size:14px; border:1px solid var(--line-strong);}
   .modal-actions .confirm{background:var(--gold); color:#17150d; border-color:var(--gold);}
+  .modal-actions .confirm.danger{background:var(--iron-red); color:#fff; border-color:var(--iron-red);}
+  .modal-actions .confirm:disabled{opacity:0.4; cursor:not-allowed;}
   .modal-actions .cancel{background:transparent; color:var(--chalk-dim);}
+  .modal-box input[type="text"]{
+    padding:10px 12px; background:var(--bg); border:1px solid var(--line-strong);
+    border-radius:9px; color:var(--chalk); font-size:14px; outline:none;
+  }
   .modal-box textarea{
     width:100%; min-height:80px; padding:10px 12px; background:var(--bg); border:1px solid var(--line-strong);
     border-radius:9px; color:var(--chalk); font-size:14px; resize:vertical; outline:none;
@@ -179,6 +185,7 @@
       <button class="tabbtn active" data-tab="referrals">Referrals Queue</button>
       <button class="tabbtn" data-tab="promoters">Promoters</button>
       <button class="tabbtn" data-tab="withdrawals">Withdrawal Requests</button>
+      <button class="tabbtn" data-tab="nudges">Nudges</button>
     </div>
 
     <!-- REFERRALS PANEL -->
@@ -229,6 +236,39 @@
         </table>
       </div>
     </div>
+
+    <!-- NUDGES PANEL -->
+    <div class="panel" id="panel-nudges">
+      <div class="section-title">Verified — commission locked, tell them</div>
+      <div class="table-wrap" style="margin-bottom:26px;">
+        <table>
+          <thead>
+            <tr><th>Promoter</th><th>Phone</th><th>Gym Owner</th><th>Commission</th><th>Verified On</th><th>Action</th></tr>
+          </thead>
+          <tbody id="nudgeVerifiedBody"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="section-title">Unlocked — 31 din poore ho gaye, batayein</div>
+      <div class="table-wrap" style="margin-bottom:26px;">
+        <table>
+          <thead>
+            <tr><th>Promoter</th><th>Phone</th><th>Gym Owner</th><th>Commission</th><th>Unlocked On</th><th>Action</th></tr>
+          </thead>
+          <tbody id="nudgeUnlockBody"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="section-title">Paid — payout confirm karein</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Promoter</th><th>Phone</th><th>Gym Owner</th><th>Commission</th><th>Paid On</th><th>Action</th></tr>
+          </thead>
+          <tbody id="nudgePaidBody"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -271,6 +311,10 @@
   function showAlert(el, msg, type) { el.textContent = msg; el.className = 'alert show ' + (type || 'err'); }
   function fmtMoney(n) { return '₹' + Number(n || 0).toLocaleString('en-IN'); }
   function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'; }
+  function waLink(phone, text) {
+    const clean = String(phone || '').replace(/\D/g, '').slice(-10);
+    return 'https://wa.me/91' + clean + '?text=' + encodeURIComponent(text);
+  }
 
   function stageBadge(stage) {
     if (stage === 'lead') return '<span class="badge lead">Pending</span>';
@@ -339,6 +383,9 @@
         if (r.stage !== 'paid' && r.stage !== 'reversed' && !r.withdrawal_request_id) {
           actions.push('<button class="mini-btn danger" data-action="reverse" data-id="' + r.id + '">Reverse</button>');
         }
+        if (r.stage !== 'paid' && !r.withdrawal_request_id) {
+          actions.push('<button class="mini-btn danger" data-action="delete" data-id="' + r.id + '" data-label="' + (r.prospect_name || r.prospect_phone || 'ye referral') + '">Delete</button>');
+        }
         return (
           '<tr>' +
             '<td class="name">' + (promoter.name || '—') + '<br><span style="font-size:11px;color:var(--steel);">' + (promoter.referral_code || '') + '</span></td>' +
@@ -370,6 +417,7 @@
     const id = btn.dataset.id;
     if (btn.dataset.action === 'verify') openVerifyModal(id);
     if (btn.dataset.action === 'reverse') openReverseModal(id);
+    if (btn.dataset.action === 'delete') openDeleteReferralModal(id, btn.dataset.label);
   });
 
   function openVerifyModal(id) {
@@ -391,7 +439,7 @@
       const btn = $('verifyConfirm');
       btn.disabled = true; btn.textContent = 'Verifying…';
       api('/admin/referrals/' + id + '/verify', { method: 'POST', body: { billingCycle: opt.cycle, planPrice: opt.price } })
-        .then(() => { closeModal(); loadReferrals(); })
+        .then(() => { closeModal(); loadReferrals(); loadNudges(); })
         .catch((err) => showAlert($('verifyAlert'), err.data && err.data.error ? err.data.error : 'Verify fail ho gaya', 'err'))
         .finally(() => { btn.disabled = false; btn.textContent = 'Verify'; });
     });
@@ -414,9 +462,51 @@
       const btn = $('reverseConfirm');
       btn.disabled = true; btn.textContent = 'Reversing…';
       api('/admin/referrals/' + id + '/reverse', { method: 'POST', body: { reason: $('reverseReason').value.trim() } })
-        .then(() => { closeModal(); loadReferrals(); })
+        .then(() => { closeModal(); loadReferrals(); loadNudges(); })
         .catch((err) => showAlert($('reverseAlert'), err.data && err.data.error ? err.data.error : 'Reverse fail ho gaya', 'err'))
         .finally(() => { btn.disabled = false; btn.textContent = 'Reverse'; });
+    });
+  }
+
+  /* ---------- generic type-to-confirm delete (referrals + promoters) ---------- */
+  function openTypeToConfirmDelete(opts) {
+    // opts: { title, warningHtml, confirmWord, onConfirm(doneCallback) }
+    openModal(
+      '<h3>' + opts.title + '</h3>' +
+      '<p style="color:var(--chalk-dim); font-size:13.5px; margin-bottom:14px;">' + opts.warningHtml + '</p>' +
+      '<label style="font-size:12px; font-weight:700; color:var(--chalk-dim); text-transform:uppercase;">Type <span style="color:var(--gold); font-family:var(--mono);">' + opts.confirmWord + '</span> to confirm</label>' +
+      '<input type="text" id="deleteConfirmInput" autocomplete="off" placeholder="' + opts.confirmWord + '" style="width:100%; margin-top:6px;">' +
+      '<div class="alert" id="deleteAlert"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="cancel" id="deleteCancel" type="button">Cancel</button>' +
+        '<button class="confirm danger" id="deleteConfirmBtn" type="button" disabled>Delete</button>' +
+      '</div>'
+    );
+    const input = $('deleteConfirmInput');
+    const confirmBtn = $('deleteConfirmBtn');
+    input.addEventListener('input', function () {
+      confirmBtn.disabled = input.value.trim() !== opts.confirmWord;
+    });
+    input.focus();
+    $('deleteCancel').addEventListener('click', closeModal);
+    confirmBtn.addEventListener('click', function () {
+      if (input.value.trim() !== opts.confirmWord) return;
+      confirmBtn.disabled = true; confirmBtn.textContent = 'Deleting…';
+      opts.onConfirm()
+        .then(() => closeModal())
+        .catch((err) => {
+          showAlert($('deleteAlert'), err.data && err.data.error ? err.data.error : 'Delete fail ho gaya', 'err');
+          confirmBtn.disabled = false; confirmBtn.textContent = 'Delete';
+        });
+    });
+  }
+
+  function openDeleteReferralModal(id, label) {
+    openTypeToConfirmDelete({
+      title: 'Delete Referral',
+      warningHtml: 'Ye "<b>' + label + '</b>" wali referral row permanently delete ho jayegi — undo nahi ho sakta.',
+      confirmWord: 'DELETE',
+      onConfirm: () => api('/admin/referrals/' + id, { method: 'DELETE' }).then(loadReferrals),
     });
   }
 
@@ -442,6 +532,7 @@
               ? '<button class="mini-btn danger" data-action="block" data-id="' + p.id + '">Block</button>'
               : '<button class="mini-btn good" data-action="unblock" data-id="' + p.id + '">Unblock</button>') +
             '<button class="mini-btn" data-action="reset-pin" data-id="' + p.id + '">Reset PIN</button>' +
+            '<button class="mini-btn danger" data-action="delete" data-id="' + p.id + '" data-name="' + p.name + '">Delete</button>' +
           '</div></td>' +
         '</tr>'
       )).join('');
@@ -457,7 +548,17 @@
     if (btn.dataset.action === 'block') doPromoterAction(id, 'block');
     if (btn.dataset.action === 'unblock') doPromoterAction(id, 'unblock');
     if (btn.dataset.action === 'reset-pin') openResetPinModal(id);
+    if (btn.dataset.action === 'delete') openDeletePromoterModal(id, btn.dataset.name);
   });
+
+  function openDeletePromoterModal(id, name) {
+    openTypeToConfirmDelete({
+      title: 'Delete Promoter',
+      warningHtml: 'Promoter "<b>' + name + '</b>" permanently delete ho jayega — undo nahi ho sakta. (Agar unke referrals abhi bhi maujood hain, to pehle wo delete karne honge.)',
+      confirmWord: 'DELETE',
+      onConfirm: () => api('/admin/promoters/' + id, { method: 'DELETE' }).then(loadPromoters),
+    });
+  }
 
   function doPromoterAction(id, action) {
     api('/admin/promoters/' + id + '/' + action, { method: 'POST' }).then(loadPromoters).catch((err) => {
@@ -552,11 +653,75 @@
       const btn = $('resolveConfirm');
       btn.disabled = true; btn.textContent = 'Saving…';
       api('/admin/withdrawal-requests/' + id + '/resolve', { method: 'POST', body: { status, adminNote: $('resolveNote').value.trim() } })
-        .then(() => { closeModal(); loadWithdrawals(); loadReferrals(); })
+        .then(() => { closeModal(); loadWithdrawals(); loadReferrals(); loadNudges(); })
         .catch((err) => showAlert($('resolveAlert'), err.data && err.data.error ? err.data.error : 'Action fail ho gayi', 'err'))
         .finally(() => { btn.disabled = false; btn.textContent = title; });
     });
   }
+
+  /* ---------- NUDGES ---------- */
+  function nudgeMessage(type, promoterName, gymLabel, amount) {
+    if (type === 'verified') {
+      return 'Hi ' + promoterName + '! Aapka referral (' + gymLabel + ') verify ho gaya hai. Commission ' + fmtMoney(amount) + ' lock ho gaya hai, 31 din baad unlock hoga. GymCare Refer & Earn dashboard pe check kar sakte hain.';
+    }
+    if (type === 'unlock') {
+      return 'Good news ' + promoterName + '! Aapka ' + fmtMoney(amount) + ' commission (' + gymLabel + ' wala referral) ab unlock ho gaya hai. Dashboard se withdraw request bhej sakte hain.';
+    }
+    return 'Hi ' + promoterName + ', aapka ' + fmtMoney(amount) + ' commission payment kar diya gaya hai. Dhanyawad, aise hi referrals bhejte rahiye!';
+  }
+
+  function renderNudgeRows(bodyId, rows, type, dateField) {
+    if (!rows.length) {
+      $(bodyId).innerHTML = '<tr><td colspan="6" class="empty-row">Koi pending nudge nahi hai</td></tr>';
+      return;
+    }
+    $(bodyId).innerHTML = rows.map((r) => {
+      const promoter = r.promoters || {};
+      const gymLabel = r.prospect_name || r.prospect_phone || 'gym owner';
+      const msg = nudgeMessage(type, promoter.name || 'Promoter', gymLabel, r.commission_amount);
+      return (
+        '<tr>' +
+          '<td class="name">' + (promoter.name || '—') + '</td>' +
+          '<td>' + (promoter.phone || '—') + '</td>' +
+          '<td>' + gymLabel + '</td>' +
+          '<td>' + fmtMoney(r.commission_amount) + '</td>' +
+          '<td>' + fmtDate(r[dateField]) + '</td>' +
+          '<td><a class="mini-btn good" target="_blank" rel="noopener" href="' + waLink(promoter.phone, msg) + '" data-action="nudge-sent" data-id="' + r.id + '" data-type="' + type + '">Send WhatsApp</a></td>' +
+        '</tr>'
+      );
+    }).join('');
+  }
+
+  function loadNudges() {
+    $('nudgeVerifiedBody').innerHTML = '<tr><td colspan="6" class="empty-row">Loading…</td></tr>';
+    $('nudgeUnlockBody').innerHTML = '<tr><td colspan="6" class="empty-row">Loading…</td></tr>';
+    $('nudgePaidBody').innerHTML = '<tr><td colspan="6" class="empty-row">Loading…</td></tr>';
+    api('/admin/nudges/pending').then((data) => {
+      renderNudgeRows('nudgeVerifiedBody', data.verified || [], 'verified', 'signup_verified_at');
+      renderNudgeRows('nudgeUnlockBody', data.unlock || [], 'unlock', 'unlock_at');
+      renderNudgeRows('nudgePaidBody', data.paid || [], 'paid', 'paid_at');
+    }).catch((err) => {
+      const msg = 'Load nahi ho paya: ' + (err.data && err.data.error ? err.data.error : err.message);
+      $('nudgeVerifiedBody').innerHTML = '<tr><td colspan="6" class="empty-row">' + msg + '</td></tr>';
+      $('nudgeUnlockBody').innerHTML = '';
+      $('nudgePaidBody').innerHTML = '';
+    });
+  }
+
+  // Clicking "Send WhatsApp" opens the wa.me link in a new tab (normal <a>
+  // href/target behavior — never blocked by popup blockers since it's a
+  // real user click on a real link) AND marks the nudge as sent so the row
+  // drops off the pending list. If the WhatsApp tab somehow doesn't open,
+  // the mark-sent call still fires — acceptable tradeoff since this is a
+  // manual, single-admin tool, not something needing perfect two-way sync.
+  ['nudgeVerifiedBody', 'nudgeUnlockBody', 'nudgePaidBody'].forEach((bodyId) => {
+    $(bodyId).addEventListener('click', function (e) {
+      const link = e.target.closest('a[data-action="nudge-sent"]');
+      if (!link) return;
+      const id = link.dataset.id, type = link.dataset.type;
+      api('/admin/nudges/' + id + '/' + type + '/mark-sent', { method: 'POST' }).then(loadNudges).catch(() => {});
+    });
+  });
 
   /* ---------- boot ---------- */
   function boot() {
@@ -566,6 +731,7 @@
     loadReferrals();
     loadPromoters();
     loadWithdrawals();
+    loadNudges();
   }
 
   if (localStorage.getItem(TOKEN_KEY)) {
