@@ -218,9 +218,9 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>Name</th><th>Phone</th><th>Referral Code</th><th>Status</th><th>T&amp;C Accepted</th><th>Signed Up</th><th>Actions</th></tr>
+            <tr><th>Name</th><th>Phone</th><th>Referral Code</th><th>Type</th><th>Status</th><th>T&amp;C Accepted</th><th>Signed Up</th><th>Actions</th></tr>
           </thead>
-          <tbody id="promotersBody"><tr><td colspan="7" class="empty-row">Loading…</td></tr></tbody>
+          <tbody id="promotersBody"><tr><td colspan="8" class="empty-row">Loading…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -512,11 +512,11 @@
 
   /* ---------- PROMOTERS ---------- */
   function loadPromoters() {
-    $('promotersBody').innerHTML = '<tr><td colspan="7" class="empty-row">Loading…</td></tr>';
+    $('promotersBody').innerHTML = '<tr><td colspan="8" class="empty-row">Loading…</td></tr>';
     api('/admin/promoters').then((data) => {
       const rows = data.promoters || [];
       if (!rows.length) {
-        $('promotersBody').innerHTML = '<tr><td colspan="7" class="empty-row">Koi promoter nahi hai</td></tr>';
+        $('promotersBody').innerHTML = '<tr><td colspan="8" class="empty-row">Koi promoter nahi hai</td></tr>';
         return;
       }
       $('promotersBody').innerHTML = rows.map((p) => (
@@ -524,6 +524,7 @@
           '<td class="name">' + p.name + '</td>' +
           '<td>' + p.phone + '</td>' +
           '<td style="font-family:var(--mono); color:var(--gold);">' + p.referral_code + '</td>' +
+          '<td>' + (p.partner_type === 'creator' ? 'Creator' : p.partner_type === 'sales_promoter' ? 'Sales Promoter' : '—') + '</td>' +
           '<td>' + (p.active ? '<span class="badge active">Active</span>' : '<span class="badge blocked">Blocked</span>') + '</td>' +
           '<td>' + (p.terms_accepted_at ? fmtDate(p.terms_accepted_at) : '—') + '</td>' +
           '<td>' + fmtDate(p.created_at) + '</td>' +
@@ -537,7 +538,7 @@
         '</tr>'
       )).join('');
     }).catch((err) => {
-      $('promotersBody').innerHTML = '<tr><td colspan="7" class="empty-row">Load nahi ho paya: ' + (err.data && err.data.error ? err.data.error : err.message) + '</td></tr>';
+      $('promotersBody').innerHTML = '<tr><td colspan="8" class="empty-row">Load nahi ho paya: ' + (err.data && err.data.error ? err.data.error : err.message) + '</td></tr>';
     });
   }
 
